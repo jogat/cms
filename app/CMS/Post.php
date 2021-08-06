@@ -88,21 +88,24 @@ class Post {
 
         }
 
-        return $result->count() === 1 ? $result->first() : $result;
+        return $result;
     }
 
     /**
+     * @param $save_as_status
      * @param $type
      * @param $title
      * @param string $description
      * @param string $body
+     * @param null $thumbnail
      * @param null|\Illuminate\Http\UploadedFile $resource
      * @param null $json_data
+     * @return Post
      * @throws \Exception
      */
-    public function add($save_as, $type, $title, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
+    public function add($save_as_status, $type, $title, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
 
-        if (!is_numeric($save_as)  || !in_array($save_as, [Status::ID_DRAFT, Status::ID_SUBMITTED, Status::ID_PUBLISHED])) {
+        if (!is_numeric($save_as_status)  || !in_array($save_as_status, [Status::ID_DRAFT, Status::ID_SUBMITTED, Status::ID_PUBLISHED])) {
             throw new \Exception('Invalid/missing save as value', 400);
         }
 
@@ -139,7 +142,7 @@ class Post {
                     'thumbnail'=> null
                 ]);
 
-            $this->update_thumbnail($thumbnail);
+            $this->set_thumbnail($thumbnail);
 
         } catch (QueryException $e) {
             throw new \Exception($e->getMessage(), 500);
@@ -150,7 +153,7 @@ class Post {
     }
 
     /**
-     * @param int $save_as
+     * @param $save_as_status
      * @param null|int $type
      * @param null|string $title
      * @param string $description
@@ -161,7 +164,7 @@ class Post {
      * @return int
      * @throws \Exception
      */
-    public function update($save_as, $type = null, $title = null, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
+    public function update($save_as_status, $type = null, $title = null, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
 
         $values = [
             'description'=> (string)$description,
@@ -178,12 +181,15 @@ class Post {
             if ($count = db('cms')->table('post')->where('slug', 'like', $slug.'%')->count()) {
                 $slug .= "-$count";
             }
-            $values['slug'] =   "$slug-$count";
+            $values['slug'] = "$slug-$count";
 
         }
 
-        if ($save_as !== null && is_numeric($save_as) && $this->status()->get()->where('id','=', $save_as)->count()) {
-            $values['status'] =   $save_as;
+        // verify status is correct
+        if ($save_as_status !== null && is_numeric($save_as_status) && $this->status()->get()->where('id','=', $save_as_status)->count()) {
+            $values['status'] =   $save_as_status;
+        } else {
+            throw new \Exception('Invalid save as status value',400);
         }
 
         if ($type !== null && is_numeric($type) && $this->type()->get()->where('id','=', $type)->count()) {
@@ -192,7 +198,7 @@ class Post {
 
         try {
 
-            $this->update_thumbnail($thumbnail);
+            $this->set_thumbnail($thumbnail);
 
             return db('cms')->table('post')
                 ->where('post.id','=', $this->id())
@@ -212,7 +218,7 @@ class Post {
         }
     }
 
-    private function update_thumbnail($thumbnail) {
+    private function set_thumbnail($thumbnail) {
 
         if ($thumbnail instanceof \Illuminate\Http\UploadedFile) {
 

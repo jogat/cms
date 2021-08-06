@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller as BaseController;
 
-class Post extends BaseController {
+class Post extends Controller {
 
-    public function index(Request $request) {
+    public function index() {
 
         $return = [
             'result'=> [],
@@ -22,14 +21,14 @@ class Post extends BaseController {
         }
 
         if (!$return['success']) {
-            return $request->expectsJson() ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
+            return $this->wants_json ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $request->expectsJson() ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
+        return $this->wants_json ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
 
     }
 
-    public function show($id, Request $request) {
+    public function show($id) {
 
         $return = [
             'result'=> [],
@@ -37,17 +36,17 @@ class Post extends BaseController {
         ];
 
         try {
-            $return['result'] = cms()->post($id)->get();
+            $return['result'] = cms()->post($id)->get()->first();
             $return['success'] = true;
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
         }
 
         if (!$return['success']) {
-            return $request->expectsJson() ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
+            return $this->wants_json ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $request->expectsJson() ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
+        return $this->wants_json ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
     }
 
     public function store(Request $request) {
@@ -57,21 +56,19 @@ class Post extends BaseController {
             'success'=> false
         ];
 
-        $expects_json = $request->expectsJson();
-
         try {
 
-            $type = !$expects_json ? $request->post('type') : $request->json('type');
-            $save_as = !$expects_json ? $request->post('save_as') : $request->json('save_as');
-            $title = !$expects_json ? $request->post('title') : $request->json('title');
-            $description = !$expects_json ? $request->post('description') : $request->json('description');
-            $body = !$expects_json ? $request->post('body') : $request->json('body');
+            $type = $this->wants_json ? $request->json('type') : $request->post('type');
+            $save_as_status = $this->wants_json ? $request->json('save_as_status') : $request->post('save_as_status');
+            $title = $this->wants_json ? $request->json('title') : $request->post('title');
+            $description = $this->wants_json ? $request->json('description') : $request->post('description');
+            $body = $this->wants_json ? $request->json('body') : $request->post('body');
             $thumbnail = $request->file('thumbnail');
-            $resource = !$expects_json ? $request->post('resource') : $request->json('resource');
-            $json_data = !$expects_json ? $request->post('json_data') : $request->json('json_data');
+            $resource = $this->wants_json ? $request->json('resource') : $request->post('resource');
+            $json_data = $this->wants_json ? $request->json('json_data') : $request->post('json_data');
 
             $post = cms()->post()->add(
-                $save_as,
+                $save_as_status,
                 $type,
                 $title,
                 $description,
@@ -86,14 +83,14 @@ class Post extends BaseController {
 
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
-            $return['code'] = $e->getCode();
+            $return['code'] = $e->getCode() ?? 500;
         }
 
         if (!$return['success']) {
-            return response($return['error'], $return['code']);
+            return $this->wants_json ? response()->json($return,$return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $request->expectsJson() ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
 
     }
 
@@ -107,21 +104,19 @@ class Post extends BaseController {
             'success'=> false
         ];
 
-        $expects_json = $request->expectsJson();
-
         try {
 
-            $type = !$expects_json ? $request->post('type') : $request->json('type');
-            $save_as = !$expects_json ? $request->post('save_as') : $request->json('save_as');
-            $title = !$expects_json ? $request->post('title') : $request->json('title');
-            $description = !$expects_json ? $request->post('description') : $request->json('description');
-            $body = !$expects_json ? $request->post('body') : $request->json('body');
+            $type = $this->wants_json ? $request->json('type') : $request->post('type');
+            $save_as_status = $this->wants_json ? $request->json('save_as_status') : $request->post('save_as_status');
+            $title = $this->wants_json ? $request->json('title') : $request->post('title');
+            $description = $this->wants_json ? $request->json('description') : $request->post('description');
+            $body = $this->wants_json ? $request->json('body') : $request->post('body');
             $thumbnail = $request->file('thumbnail');
-            $resource = !$expects_json ? $request->post('resource') : $request->json('resource');
-            $json_data = !$expects_json ? $request->post('json_data') : $request->json('json_data');
+            $resource = $this->wants_json ? $request->json('resource') : $request->post('resource');
+            $json_data = $this->wants_json ? $request->json('json_data') : $request->post('json_data');
 
-            $post = cms()->post($id)->update(
-                $save_as,
+            cms()->post($id)->update(
+                $save_as_status,
                 $type,
                 $title,
                 $description,
@@ -131,19 +126,18 @@ class Post extends BaseController {
                 $json_data
             );
 
-            $return['result'] = $post->id();
             $return['success'] = true;
 
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
-            $return['code'] = $e->getCode() > 0 ? $e->getCode() : 500;
+            $return['code'] = $e->getCode() ?? 500;
         }
 
         if (!$return['success']) {
-            return response($return['error'], $return['code']);
+            return $this->wants_json ? response()->json($return,$return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $request->expectsJson() ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
 
     }
 
@@ -164,10 +158,10 @@ class Post extends BaseController {
         }
 
         if (!$return['success']) {
-            return response($return['error'], $return['code']);
+            return $this->wants_json ? response()->json($return,500) : redirect()->back(500)->withErrors($return['error']);
         }
 
-        return $request->expectsJson() ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
     }
 
 }
