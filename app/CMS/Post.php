@@ -46,6 +46,7 @@ class Post {
                 db()->raw('MAX(post.thumbnail) as thumbnail'),
                 db()->raw('MAX(post.resource) as resource'),
                 db()->raw('MAX(post.json_data) as json_data'),
+                db()->raw('MAX(post.last_published_date) as last_published_date'),
                 db()->raw('GROUP_CONCAT(post_has_category.category) as categories'),
                 db()->raw('COUNT(post_comment.id) as comment_count'),
             ])
@@ -76,11 +77,11 @@ class Post {
 
                 $item->type = $types->where('id','=',$item->type)->map(function ($type) {
                     return collect($type)->only(['id', 'slug', 'title']);
-                })->first();
+                })->first()->toArray();
 
                 $item->status = $status->where('id','=',$item->status)->map(function ($state) {
                     return collect($state)->only(['id', 'slug', 'title']);
-                })->first();
+                })->first()->toArray();
 
                 $item->categories = $categories->whereIn('id', explode(',', $item->categories))->values();
 
@@ -135,11 +136,13 @@ class Post {
                     'author'=> auth()->id(),
                     'title'=> $title,
                     'description'=> $description,
-                    'status'=> Status::ID_PUBLISHED,
+                    'status'=> $save_as_status,
                     'body'=> $body,
                     'resource'=> $resource,
                     'json_data'=> $json_data,
-                    'thumbnail'=> null
+                    'thumbnail'=> null,
+                    'created_at'=> db()->raw('NOW()'),
+                    'updated_at'=> db()->raw('NOW()'),
                 ]);
 
             $this->set_thumbnail($thumbnail);
@@ -166,14 +169,23 @@ class Post {
      */
     public function update($save_as_status, $type = null, $title = null, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
 
-        $values = [
-            'description'=> (string)$description,
-            'body'=> strip_tags($body),
-            'resource'=> $resource,
-            'json_data'=> $json_data,
-        ];
+        if (!empty($description)) {
+            $values['description'] = $description;
+        }
 
-        if ($title !== null && is_string($title)) {
+        if (!empty($body)) {
+            $values['body'] = strip_tags($body);
+        }
+
+        if (!empty($resource)) {
+            $values['resource'] = strip_tags($resource);
+        }
+
+        if (!empty($json_data)) {
+            $values['json_data'] = strip_tags($json_data);
+        }
+
+        if (is_string($title)) {
 
             $values['title'] = $title;
             $slug = preg_replace('/[^a-z0-9]/', '-', strtolower(trim(strip_tags($title))));
@@ -186,23 +198,53 @@ class Post {
         }
 
         // verify status is correct
-        if ($save_as_status !== null && is_numeric($save_as_status) && $this->status()->get()->where('id','=', $save_as_status)->count()) {
-            $values['status'] =   $save_as_status;
-        } else {
-            throw new \Exception('Invalid save as status value',400);
+        if ($save_as_status) {
+            if (is_numeric($save_as_status) && $this->status()->get()->where('id','=', $save_as_status)->count()) {
+                $values['status'] =   $save_as_status;
+            } else {
+                throw new \Exception('Invalid save as status value',400);
+            }
         }
 
-        if ($type !== null && is_numeric($type) && $this->type()->get()->where('id','=', $type)->count()) {
+        if (is_numeric($type) && $this->type()->get()->where('id','=', $type)->count()) {
             $values['type'] =   $type;
+        }
+
+        if (empty($values)) {
+            return false;
         }
 
         try {
 
+            $values['updated_at'] = db()->raw('NOW()');
+
             $this->set_thumbnail($thumbnail);
 
-            return db('cms')->table('post')
+            if ($values['status'] === Status::ID_SUBMITTED) {
+                $values['last_published_date'] = db()->raw('NOW()');
+            }
+
+            $old_data = db('cms')->table('post')
                 ->where('post.id','=', $this->id())
-                ->update($values);
+                ->first();
+
+            $result =  db('cms')->table('post')
+                ->where('post.id','=', $this->id())
+                ->update($values) > 0;
+
+            if ($result) {
+
+                unset($values['last_published_date'],$values['updated_at']);
+
+                auth()->log('cms/post/update',[
+                    'id'=> $this->id(),
+                    'new_values'=> $values,
+                    'old_values'=> array_intersect_key((array)$old_data, $values)
+                ]);
+
+            }
+
+            return $result;
 
         } catch (QueryException | \Exception $e) {
             throw new \Exception($e->getMessage(), 500);
@@ -210,11 +252,33 @@ class Post {
 
     }
 
-    public function archive() {
+    /**
+     * @param false $hard_delete
+     * @return bool|int
+     * @throws \Exception
+     */
+    public function delete($hard_delete = false) {
+
+        if (!$post = $this->get()->first()) {
+            throw new \Exception('Failed to find post',400);
+        }
+
         try {
+
+            if ($hard_delete) {
+
+                if (empty($post->last_published_date)) {
+                    return db('cms')->table('post')->delete($this->id()) > 0;
+                }
+
+                throw new \Exception("Post can't be deleted, it has been published in the past",400);
+
+            }
+
             return $this->update( Status::ID_ARCHIVED);
-        } catch (\RuntimeException $e) {
-            throw new \RuntimeException($e);
+
+        } catch (\RuntimeException | \Exception $e) {
+            throw new \Exception($e->getMessage(),$e->getCode() ?? 500);
         }
     }
 
