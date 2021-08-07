@@ -34,7 +34,7 @@ class Comment extends Controller {
 
             $comment = cms()->post($post)->comment()->add($content, $parent);
 
-            return $comment->get();
+            return $this->wants_json ? response(['id'=> $comment->id()]) : true;
 
         } catch (\Exception $e) {
             return response($e->getMessage(), 500);

@@ -10,7 +10,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redirect;
 
-class Session extends BaseController {
+class Session extends Controller {
 
     public function login_view(Request $request) {
 
@@ -26,12 +26,7 @@ class Session extends BaseController {
 
     public function login(Request $request) {
 
-        if (auth()->active()) {
-            auth()->logout();
-        }
-
         $return = [
-            'as_json'=> $request->expectsJson(),
             'success'=> false,
             'json'=> response([
                 'error'=>'Invalid login.',
@@ -39,10 +34,9 @@ class Session extends BaseController {
             'web'=> Redirect::back()->withErrors(['Invalid credentials'])
         ];
 
-        $email = $return['as_json'] ? $request->json('email') : $request->post('email');
-        $password = $return['as_json'] ? $request->json('password') : $request->post('password');
-        $next = $return['as_json'] ? $request->json('next') : $request->post('next');
-
+        $email = $this->wants_json ? $request->json('email') : $request->post('email');
+        $password = $this->wants_json ? $request->json('password') : $request->post('password');
+        $next = $this->wants_json ? $request->json('next') : $request->post('next');
 
         try {
 
@@ -61,22 +55,19 @@ class Session extends BaseController {
             $return['web'] = Redirect::back()->withErrors([$e->getMessage()]);
         }
 
-
-
         if ($return['success']) {
             try {
                 sleep(random_int(1,5));
             } catch(\Exception $e){}
         }
 
-        return $return['as_json'] ? $return['json'] : $return['web'];
+        return $this->wants_json ? $return['json'] : $return['web'];
 
     }
 
     public function logout(Request $request) {
 
         $return = [
-            'as_json'=> $request->expectsJson(),
             'json'=> response('Logged out.'),
             'web'=> redirect('/login')
         ];
@@ -92,26 +83,24 @@ class Session extends BaseController {
 
         auth()->logout();
         auth()->log('eo/user/logout');
-        return $return['as_json'] ? $return['json'] : $return['web'];
+        return $this->wants_json ? $return['json'] : $return['web'];
 
     }
 
     public function data(){
 
         $data = new Collection(auth()->data());
+        $data = $data->only([
+            'session',
+            'info',
+            'access',
+            'meta',
+            'customer',
+            'cart',
+            'menu',
+        ])->all();
 
-        return response()->json(
-            $data->only([
-                'session',
-                'info',
-                'access',
-                'meta',
-                'customer',
-                'cart',
-                'menu',
-            ])->all(),
-
-        );
+        return $this->wants_json ? response()->json($data) : $data;
 
     }
 
