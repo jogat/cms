@@ -8,53 +8,49 @@ class Post extends Controller {
 
     public function index() {
 
-        $return = [
-            'result'=> [],
-            'success'=> false
-        ];
+        $return = [];
+        $success = false;
 
         try {
-            $return['result'] = cms()->post()->get();
-            $return['success'] = true;
+            $return = cms()->post()->get();
+            $success = true;
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
+            $return['code'] = $e->getCode() ?? 500;
         }
 
-        if (!$return['success']) {
-            return $this->wants_json ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
+        if (!$success) {
+            return $this->wants_json ? response($return['error'], $return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $this->wants_json ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
+        return $this->wants_json ? response()->json($return) : view('cms.post.index', $return);
 
     }
 
     public function show($id) {
 
-        $return = [
-            'result'=> [],
-            'success'=> false
-        ];
+        $return = [];
+        $success = false;
 
         try {
-            $return['result'] = cms()->post($id)->get()->first();
-            $return['success'] = true;
+            $return = cms()->post($id)->get()->first();
+            $success = true;
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
+            $return['code'] = $e->getCode() ?? 500;
         }
 
-        if (!$return['success']) {
-            return $this->wants_json ? response($return['error'], 500) : redirect()->back()->withErrors($return['error']);
+        if (!$success) {
+            return $this->wants_json ? response($return, $return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $this->wants_json ? response()->json($return['result']) : view('cms.auth.login', $return['result']);
+        return $this->wants_json ? response()->json($return) : view('cms.post.edit', $return);
     }
 
     public function store(Request $request) {
 
-        $return = [
-            'result'=> [],
-            'success'=> false
-        ];
+        $return['id'] = null;
+        $success = false;
 
         try {
 
@@ -78,19 +74,19 @@ class Post extends Controller {
                 $json_data
             );
 
-            $return['result'] = $post->id();
-            $return['success'] = true;
+            $return['id'] = $post->id();
+            $success = true;
 
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
             $return['code'] = $e->getCode() ?? 500;
         }
 
-        if (!$return['success']) {
+        if (!$success) {
             return $this->wants_json ? response()->json($return,$return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return) : response($return);
 
     }
 
@@ -99,10 +95,8 @@ class Post extends Controller {
 
     public function update($id, Request $request) {
 
-        $return = [
-            'result'=> [],
-            'success'=> false
-        ];
+        $return['updated'] = false;
+        $success = false;
 
         try {
 
@@ -115,7 +109,7 @@ class Post extends Controller {
             $resource = $this->wants_json ? $request->json('resource') : $request->post('resource');
             $json_data = $this->wants_json ? $request->json('json_data') : $request->post('json_data');
 
-            cms()->post($id)->update(
+            $return['updated'] = cms()->post($id)->update(
                 $save_as_status,
                 $type,
                 $title,
@@ -126,42 +120,42 @@ class Post extends Controller {
                 $json_data
             );
 
-            $return['success'] = true;
+            $success = true;
 
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
             $return['code'] = $e->getCode() ?? 500;
         }
 
-        if (!$return['success']) {
+        if (!$success) {
             return $this->wants_json ? response()->json($return,$return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return) : response($return);
 
     }
 
-    public function archive($id, Request $request) {
+    public function destroy($id, Request $request) {
 
-        $return = [
-            'result'=> [],
-            'success'=> false
-        ];
+        $return['deleted'] = false;
+        $success = false;
+
+        $hard_delete = $this->wants_json ? (bool)$request->json('hard_delete',false) : (bool)$request->post('hard_delete', false);
 
         try {
-            $return['result'] = cms()->post($id)->archive();
-            $return['success'] = true;
+            $return['deleted'] = cms()->post($id)->delete($hard_delete);
+            $success = true;
 
         } catch (\Exception $e) {
             $return['error'] = $e->getMessage();
-            $return['code'] = $e->getCode() > 0 ? $e->getCode() : 500;
+            $return['code'] = $e->getCode() ?? 500;
         }
 
-        if (!$return['success']) {
-            return $this->wants_json ? response()->json($return,500) : redirect()->back(500)->withErrors($return['error']);
+        if (!$success) {
+            return $this->wants_json ? response()->json($return,$return['code']) : redirect()->back()->withErrors($return['error']);
         }
 
-        return $this->wants_json ? response()->json($return['result']) : response($return['result']);
+        return $this->wants_json ? response()->json($return) : response($return);
     }
 
 }

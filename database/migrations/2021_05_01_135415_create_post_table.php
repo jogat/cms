@@ -29,6 +29,7 @@ class CreatePostTable extends Migration
             $table->json('json_data')->nullable(); // survey, poll, data
 
             $table->timestamps();
+            $table->timestamp('last_published_date')->nullable();// update date every time status is changed to published
 
             $table->foreign('published_by','FK_published_by_TO_user')
                 ->references('id')->on('user')

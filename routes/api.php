@@ -30,7 +30,7 @@ $router->group(['middleware' => 'authRequired'], function() use ($router) {
         $router->post('',   'Post@store');
         $router->get('{post}',   'Post@show');
         $router->post('{post}',   'Post@update');
-        $router->delete('{post}',   'Post@archive');
+        $router->delete('{post}',   'Post@destroy');
 
         $router->group(['prefix' => '{post}/comment'], function() use ($router) {
 
