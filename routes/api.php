@@ -26,11 +26,17 @@ $router->group(['middleware' => 'authRequired'], function() use ($router) {
     $router->get('test','Session@data');
 
     $router->group(['prefix' => 'post'], function() use ($router) {
+
+        $router->post('/search',   'Post@search');
+
         $router->get('',   'Post@index');
         $router->post('',   'Post@store');
+
         $router->get('{post}',   'Post@show');
         $router->post('{post}',   'Post@update');
         $router->delete('{post}',   'Post@destroy');
+
+
 
         $router->group(['prefix' => '{post}/comment'], function() use ($router) {
 
@@ -42,6 +48,16 @@ $router->group(['middleware' => 'authRequired'], function() use ($router) {
         });
 
     });
+
+    $router->group(['prefix' => 'audience'], function() use ($router) {
+
+        $router->get('',   'API\Audience@index');
+        $router->post('',   'API\Audience@store');
+
+        $router->get('{post}',   'API\Audience@show');
+
+    });
+
 });
 
 

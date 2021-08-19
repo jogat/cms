@@ -21,7 +21,8 @@ class CreateMenuTable extends Migration
             $table->string('title',255);
             $table->text('description')->nullable(true);
             $table->string('url',255)->unique();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
         });
     }

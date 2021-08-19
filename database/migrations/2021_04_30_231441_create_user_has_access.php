@@ -16,7 +16,8 @@ class CreateUserHasAccess extends Migration
         Schema::create('user_has_access', function (Blueprint $table) {
             $table->unsignedBigInteger('user');
             $table->unsignedBigInteger('access');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
             $table->primary(['user','access']);
 

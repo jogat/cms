@@ -4,6 +4,7 @@
 namespace App\CMS;
 
 
+use App\CMS\User\Meta;
 use App\CMS\User\Role;
 use Illuminate\Database\QueryException;
 
@@ -99,6 +100,14 @@ class User {
      */
     public function role($id=null){
         return new Role($id);
+    }
+
+    /**
+     * @param null $meta
+     * @return Meta
+     */
+    public function meta($meta=null) {
+        return new Meta($meta);
     }
 
     /**

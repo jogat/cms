@@ -17,7 +17,9 @@ class CreateUserHasRole extends Migration
             $table->unsignedBigInteger('role');
             $table->unsignedBigInteger('user');
             $table->primary(['user','role']);
-            $table->timestamps();
+
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
             $table->foreign('user','FK_user_has_role_TO_user')
                 ->references('id')->on('user')

@@ -16,7 +16,8 @@ class CreateUserSession extends Migration
         Schema::create('user_session', function (Blueprint $table) {
             $table->string('session',50)->primary();
             $table->text('data');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
         });
     }
 

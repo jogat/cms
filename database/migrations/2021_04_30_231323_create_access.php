@@ -19,7 +19,9 @@ class CreateAccess extends Migration
             $table->string('group-slug',100);
             $table->string('title',200)->unique('title')->default('');
             $table->text('description')->nullable();
-            $table->timestamps();
+
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
 
         });
