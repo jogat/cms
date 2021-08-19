@@ -17,5 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         UserRolesAccessSeeder::run();
         PostSeeder::run();
+        AudienceRuleSeeder::run();
+        UserMetaSeeder::run();
     }
 }

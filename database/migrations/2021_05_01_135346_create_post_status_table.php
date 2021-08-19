@@ -17,7 +17,8 @@ class CreatePostStatusTable extends Migration
             $table->id();
             $table->string('slug',50)->unique();
             $table->string('title',100);
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
         });
     }
 

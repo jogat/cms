@@ -17,7 +17,8 @@ class CreateUserHasMeta extends Migration
             $table->unsignedBigInteger('user');
             $table->unsignedBigInteger('meta');
             $table->string('value');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
             $table->primary(['user','meta', 'value']);
 

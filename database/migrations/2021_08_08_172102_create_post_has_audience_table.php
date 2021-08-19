@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateMenuHasAccessTable extends Migration
+class CreatePostHasAudienceTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,20 +13,21 @@ class CreateMenuHasAccessTable extends Migration
      */
     public function up()
     {
-        Schema::create('menu_has_access', function (Blueprint $table) {
-            $table->unsignedBigInteger('menu');
-            $table->unsignedBigInteger('access');
-            $table->primary(['menu','access']);
+        Schema::create('post_has_audience', function (Blueprint $table) {
+            $table->unsignedBigInteger('post');
+            $table->unsignedBigInteger('audience');
+            $table->primary(['post','audience']);
+
             $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
-            $table->foreign('menu','FK_menu_has_access_TO_menu')
-                ->references('id')->on('menu')
+            $table->foreign('post','FK_post_has_audience_TO_post')
+                ->references('id')->on('post')
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
 
-            $table->foreign('access','FK_menu_has_access_TO_access')
-                ->references('id')->on('access')
+            $table->foreign('audience','FK_post_has_audience_TO_audience')
+                ->references('id')->on('audience')
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
         });
@@ -39,6 +40,6 @@ class CreateMenuHasAccessTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('menu_has_access');
+        Schema::dropIfExists('post_has_audience');
     }
 }

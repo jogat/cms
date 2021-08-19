@@ -18,7 +18,8 @@ class CreateUserTrackAction extends Migration
             $table->unsignedBigInteger('user')->index();
             $table->string('action',200)->index();
             $table->string('session',50)->index();
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
             $table->foreign('user','FK_user_track_action_TO_user')
                 ->references('id')->on('user')

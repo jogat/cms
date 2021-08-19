@@ -21,7 +21,8 @@ class CreatePostCommentTable extends Migration
             $table->unsignedBigInteger('author');
             $table->string('content',200);
             $table->boolean('published');
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 
 
             $table->foreign('post','FK_post_comment_TO_post')

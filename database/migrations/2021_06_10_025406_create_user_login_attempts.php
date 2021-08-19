@@ -19,7 +19,8 @@ class CreateUserLoginAttempts extends Migration
             $table->tinyInteger('success');
             $table->string('session',50);
             $table->string('ip',20);
-            $table->timestamps();
+            $table->timestamp('created_at')->default(db()->raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('updated_at')->default(db()->raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
         });
     }
 

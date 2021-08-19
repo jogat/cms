@@ -28,10 +28,17 @@ class Post {
 
     }
 
-    /** Get an array of post or a single post
-     * @return \Illuminate\Support\Collection|mixed
-     */
-    public function get() {
+    public function search($parameters = [], $column_order = '', $order_direction = 'ASC', $items_per_page = 100) {
+
+        $default_parameters = [
+            'text'=> false,
+            'types'=> false,
+            'status'=> false,
+            'categories'=> false,
+            'audiences'=> false,
+        ];
+
+        $default_parameters = array_merge($default_parameters, $parameters);
 
         $query = db()->table('post')
             ->select([
@@ -48,32 +55,84 @@ class Post {
                 db()->raw('MAX(post.json_data) as json_data'),
                 db()->raw('MAX(post.last_published_date) as last_published_date'),
                 db()->raw('GROUP_CONCAT(post_has_category.category) as categories'),
+                db()->raw('GROUP_CONCAT(post_has_audience.audience) as audiences'),
                 db()->raw('COUNT(post_comment.id) as comment_count'),
             ])
             ->leftJoin('post_has_category','post.id','=','post_has_category.post')
+            ->leftJoin('post_has_audience','post.id','=','post_has_audience.post')
             ->join('user','post.author','=','user.id')
             ->leftJoin('post_comment','post.id','=','post_comment.post')
             ->groupBy(['post.id']);
 
-
-        if ($this->id !== null) {
-
-            $result = $query->where('post.id', '=', $this->id)->get();
-            if (!$result->isEmpty()) {
-                $result->first()->comments = $this->comment()->get();
-            }
-
-        } else {
-            $result = $query->get();
+        if (!empty($column_order) && in_array(strtoupper($order_direction), ['ASC','DESC'])) {
+            $query->orderBy($column_order, $order_direction);
         }
 
-        if (!$result->isEmpty()) {
+        if ($default_parameters['text']) {
+
+            $text = '%'.strtolower($default_parameters['text']).'%';
+            $query->where(function($q) use($text) {
+                /** @var \Illuminate\Database\Query\Builder $q */
+
+                $q->whereRaw("LOWER(post.title) like ?", [$text])
+                    ->orWhereRaw('LOWER(CONCAT(MAX(user.first_name), " ",MAX(user.last_name))) like ?', [$text])
+                    ->orWhereRaw('LOWER(MAX(post.description)) like ?', [$text]);
+
+            });
+
+
+        }
+
+        if ($default_parameters['types']) {
+
+            if (is_array($default_parameters['types'])) {
+                $query->whereIn("post.type", $default_parameters['types']);
+            } else {
+                $query->where("post.type", '=', $default_parameters['types']);
+            }
+
+        }
+
+        if ($default_parameters['status']) {
+
+            if (is_array($default_parameters['status'])) {
+                $query->whereIn("post.status", $default_parameters['status']);
+            } else {
+                $query->where("post.status", '=', $default_parameters['status']);
+            }
+
+        }
+
+        if ($default_parameters['categories']) {
+
+            if (is_array($default_parameters['categories'])) {
+                $query->whereIn("post_has_category.category", $default_parameters['categories']);
+            } else {
+                $query->where("post_has_category.category", '=', $default_parameters['categories']);
+            }
+
+        }
+
+        if ($default_parameters['audiences']) {
+
+            if (is_array($default_parameters['audiences'])) {
+                $query->whereIn("post_has_audience.audience", $default_parameters['audiences']);
+            } else {
+                $query->where("post_has_audience.audience", '=', $default_parameters['audiences']);
+            }
+
+        }
+
+
+        $result = $query->paginate($items_per_page);
+
+        if (!empty($result->items())) {
 
             $types = $this->type()->get();
             $categories = $this->category()->get();
             $status = $this->status()->get();
 
-            $result->each(function($item) use ($types, $categories, $status) {
+            $result->getCollection()->map(function ($item) use ($types, $categories, $status) {
 
                 $item->type = $types->where('id','=',$item->type)->map(function ($type) {
                     return collect($type)->only(['id', 'slug', 'title']);
@@ -85,11 +144,93 @@ class Post {
 
                 $item->categories = $categories->whereIn('id', explode(',', $item->categories))->values();
 
+                return $item;
             });
 
         }
 
         return $result;
+
+    }
+
+    /** Get an array of post or a single post
+     * @return \Illuminate\Support\Collection|mixed
+     */
+    public function get() {
+
+        try {
+
+            $query = db()->table('post')
+                ->select([
+                    'post.id',
+                    db()->raw('MAX(post.slug) as slug'),
+                    db()->raw('MAX(post.author) as author_id'),
+                    db()->raw('CONCAT(MAX(user.first_name), " ",MAX(user.last_name)) as author_name'),
+                    db()->raw('MAX(post.title) as title'),
+                    db()->raw('MAX(post.description) as description'),
+                    db()->raw('MAX(post.type) as type'),
+                    db()->raw('MAX(post.status) as status'),
+                    db()->raw('MAX(post.thumbnail) as thumbnail'),
+                    db()->raw('MAX(post.resource) as resource'),
+                    db()->raw('MAX(post.json_data) as json_data'),
+                    db()->raw('MAX(post.last_published_date) as last_published_date'),
+                    db()->raw('GROUP_CONCAT(post_has_category.category) as categories'),
+                    db()->raw('GROUP_CONCAT(post_has_audience.audience) as audiences'),
+                    db()->raw('COUNT(post_comment.id) as comment_count'),
+                ])
+                ->leftJoin('post_has_category','post.id','=','post_has_category.post')
+                ->leftJoin('post_has_audience','post.id','=','post_has_audience.post')
+                ->join('user','post.author','=','user.id')
+                ->leftJoin('post_comment','post.id','=','post_comment.post')
+                ->groupBy(['post.id']);
+
+
+            if ($this->id !== null) {
+
+                $result = $query->where('post.id', '=', $this->id)->get();
+                if (!$result->isEmpty()) {
+                    $result->first()->comments = $this->comment()->get();
+                }
+
+            } else {
+
+                $result = $query->get();
+            }
+
+
+            if (!$result->isEmpty()) {
+
+                $types = $this->type()->get();
+                $categories = $this->category()->get();
+                $status = $this->status()->get();
+                $audiences = cms()->audience()->get();
+
+                $result->each(function($item) use ($types, $categories, $status, $audiences) {
+
+                    $item->type = $types->where('id','=',$item->type)->map(function ($type) {
+                        return collect($type)->only(['id', 'slug', 'title']);
+                    })->first()->toArray();
+
+                    $item->status = $status->where('id','=',$item->status)->map(function ($state) {
+                        return collect($state)->only(['id', 'slug', 'title']);
+                    })->first()->toArray();
+
+                    $item->categories = $categories->whereIn('id', explode(',', $item->categories))->values();
+
+                    $item->audiences = $item->audiences ? $audiences->whereIn('id', explode(',', $item->audiences))->map(function ($audience) {
+                        return collect($audience)->only(['id', 'title']);
+                    })->first()->toArray() : [];
+
+                });
+
+            }
+
+            return $result;
+
+        } catch (QueryException | \Exception $e) {
+            throw new \Exception($e->getMessage(), 500);
+        }
+
     }
 
     /**
@@ -104,7 +245,7 @@ class Post {
      * @return Post
      * @throws \Exception
      */
-    public function add($save_as_status, $type, $title, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null) {
+    public function add($save_as_status, $type, $title, $description = '', $body = '', $thumbnail = null, $resource = null, $json_data = null, $audiences = []) {
 
         if (!is_numeric($save_as_status)  || !in_array($save_as_status, [Status::ID_DRAFT, Status::ID_SUBMITTED, Status::ID_PUBLISHED])) {
             throw new \Exception('Invalid/missing save as value', 400);
@@ -146,8 +287,9 @@ class Post {
                 ]);
 
             $this->set_thumbnail($thumbnail);
+            $this->set_audiences($audiences);
 
-        } catch (QueryException $e) {
+        } catch (QueryException | \Exception $e) {
             throw new \Exception($e->getMessage(), 500);
         }
 
@@ -302,6 +444,37 @@ class Post {
 
     }
 
+    /** Set audience for an individual post
+     * @throws \Exception
+     */
+    private function set_audiences($audiences = []) {
+
+        try {
+
+            db()->table('post_has_audience')
+                ->where('post_has_audience.post','=', $this->id())
+                ->delete();
+
+            if (!empty($audiences)) {
+
+                $values = [];
+                foreach ($audiences as $audience) {
+                    $values[] = [
+                        'post'=> $this->id(),
+                        'audience'=> $audience
+                    ];
+                }
+
+                db()->table('post_has_audience')->insert($values);
+
+            }
+
+        }catch (\Exception | QueryException $e) {
+            throw new \Exception($e->getMessage(), 500);
+        }
+
+    }
+
     /**
      * @return int
      * @throws \Exception
@@ -315,10 +488,6 @@ class Post {
         return new Type($type);
     }
 
-    public function category($category = null) {
-        return new Category($category);
-    }
-
     public function comment($comment = null) {
         return new Comment($this->id, $comment);
     }
@@ -327,12 +496,21 @@ class Post {
         return new Status();
     }
 
+
+    /**
+     * @param null $category
+     * @return Category
+     */
+    public function category($category = null) {
+        return new Category($category);
+    }
+
     /**
      * @throws \Exception
      */
     private function id_required(){
         if(empty($this->id)){
-            throw new \Exception('Missing post id.');
+            throw new \Exception('Missing post id.', 400);
         }
     }
 }
